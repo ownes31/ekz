@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Авторизация и регистрация</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2em; }
+    input, textarea { margin: 0.2em 0; width: 300px; }
+    button { margin: 0.2em 0.5em 0.2em 0; }
+    .block { margin-bottom: 2em; }
+    pre { background: #f4f4f4; padding: 1em; }
+    .post-card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      margin: 1em 0;
+      padding: 1em;
+      background: #fafbfc;
+      box-shadow: 0 2px 8px #eee;
+    }
+    .post-title {
+      font-size: 1.2em;
+      font-weight: bold;
+      margin-bottom: 0.2em;
+    }
+    .post-meta {
+      color: #888;
+      font-size: 0.9em;
+      margin-bottom: 0.5em;
+    }
+    .post-content {
+      margin-bottom: 0.7em;
+    }
+    .comments-block {
+      margin-left: 1em;
+      margin-top: 0.5em;
+      background: #f6f8fa;
+      border-radius: 6px;
+      padding: 0.5em;
+    }
+    .comment {
+      border-top: 1px dashed #ccc;
+      margin-top: 0.5em;
+      padding-top: 0.5em;
+    }
+    .comment:first-child {
+      border-top: none;
+      margin-top: 0;
+      padding-top: 0;
+    }
+    .comment-meta {
+      color: #888;
+      font-size: 0.85em;
+    }
+  </style>
+</head>
+<body>
+  <h1>Мини-блог: API Demo</h1>
+
+  <div class="block">
+    <h2>Регистрация</h2>
+    <input type="text" id="reg_username" placeholder="Имя пользователя"><br>
+    <input type="password" id="reg_password" placeholder="Пароль"><br>
+    <button onclick="register()">Зарегистрироваться</button>
+    <div id="reg_result"></div>
+  </div>
+
+  <div class="block">
+    <h2>Вход (JWT)</h2>
+    <input type="text" id="login_username" placeholder="Имя пользователя"><br>
+    <input type="password" id="login_password" placeholder="Пароль"><br>
+    <button onclick="login()">Войти</button>
+    <div id="login_result"></div>
+  </div>
+
+  <div class="block">
+    <h2>Авторизация (вставьте access токен)</h2>
+    <input type="text" id="token" placeholder="JWT access токен"><br>
+    <button onclick="authorize()">Авторизоваться</button>
+    <div id="auth_result"></div>
+  </div>
+
+  <div class="block">
+    <h2>Создать пост</h2>
+    <input type="text" id="post_title" placeholder="Заголовок"><br>
+    <textarea id="post_content" placeholder="Текст поста"></textarea><br>
+    <button onclick="createPost()">Создать пост</button>
+    <div id="create_post_result"></div>
+  </div>
+
+  <div class="block">
+    <h2>Мои посты</h2>
+    <button onclick="getPosts()">Показать мои посты</button>
+    <div id="posts_result"></div>
+  </div>
+
+  <div class="block">
+    <h2>Добавить комментарий к посту</h2>
+    <input type="number" id="comment_post_id" placeholder="ID поста"><br>
+    <input type="text" id="comment_text" placeholder="Текст комментария"><br>
+    <button onclick="addComment()">Добавить комментарий</button>
+    <div id="comment_result"></div>
+  </div>
+
+  <div class="block">
+    <h2>Мои комментарии к посту</h2>
+    <input type="number" id="get_comments_post_id" placeholder="ID поста"><br>
+    <button onclick="getComments()">Показать мои комментарии</button>
+    <pre id="comments_result"></pre>
+  </div>
+
+  <div class="block">
+    <h2>Поиск и фильтрация постов по заголовку</h2>
+    <input type="text" id="search_title" placeholder="Введите часть заголовка"><br>
+    <button onclick="searchPosts()">Искать (поиск по подстроке)</button>
+    <button onclick="filterPosts()">Фильтровать (точное совпадение)</button>
+    <pre id="search_result"></pre>
+  </div>
+
+  <!-- Кнопки для вывода -->
+  <div class="block">
+    <button onclick="getPosts()">Показать мои посты</button>
+    <button onclick="getAllComments()">Показать мои комментарии</button>
+  </div>
+
+  <!-- Блоки для вывода -->
+  <div id="posts_result"></div>
+  <div id="comments_result"></div>
+  <div id="search_result"></div>
+
+  <script>
+    function getToken() {
+      return localStorage.getItem('jwt_token') || '';
+    }
+
+    async function register() {
+      const username = document.getElementById('reg_username').value;
+      const password = document.getElementById('reg_password').value;
+      const response = await fetch('/api/register/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username, password})
+      });
+      document.getElementById('reg_result').innerText = await response.text();
+    }
+
+    async function login() {
+      const username = document.getElementById('login_username').value;
+      const password = document.getElementById('login_password').value;
+      const response = await fetch('/api/auth/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username, password})
+      });
+      const data = await response.json();
+      document.getElementById('login_result').innerText = JSON.stringify(data, null, 2);
+      if (data.access) {
+        document.getElementById('token').value = data.access;
+        localStorage.setItem('jwt_token', data.access);
+      }
+    }
+
+    function authorize() {
+      const token = document.getElementById('token').value;
+      localStorage.setItem('jwt_token', token);
+      document.getElementById('auth_result').innerText = 'Токен сохранён!';
+    }
+
+    async function createPost() {
+      const title = document.getElementById('post_title').value;
+      const content = document.getElementById('post_content').value;
+      const response = await fetch('/api/posts/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + getToken()
+        },
+        body: JSON.stringify({title, content})
+      });
+      document.getElementById('create_post_result').innerText = await response.text();
+    }
+
+    async function getPosts() {
+      document.getElementById('comments_result').innerHTML = '';
+      const response = await fetch('/api/posts/', {
+        headers: {'Authorization': 'Bearer ' + getToken()}
+      });
+      const posts = await response.json();
+      let html = '';
+      if (Array.isArray(posts) && posts.length > 0) {
+        posts.forEach(post => {
+          html += `<div class="post-card">
+            <div class="post-title">[ID: ${post.id}] ${post.title}</div>
+            <div class="post-meta">Автор: ${post.author} | ${new Date(post.created_at).toLocaleString()}</div>
+            <div class="post-content">${post.content}</div>
+            <div class="comments-block">
+              <b>Комментарии:</b>
+              ${post.comments.length === 0 ? '<i>Нет комментариев</i>' : ''}
+              ${post.comments.map(comment => `
+                <div class="comment">
+                  <div class="comment-meta">
+                    <b>ID:</b> ${comment.id} |
+                    <b>post:</b> ${comment.post} |
+                    <b>author:</b> ${comment.author} |
+                    <b>created_at:</b> ${new Date(comment.created_at).toLocaleString()}
+                  </div>
+                  <div><b>text:</b> ${comment.text}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>`;
+        });
+      } else {
+        html = '<i>Нет постов</i>';
+      }
+      document.getElementById('posts_result').innerHTML = html;
+    }
+
+    async function addComment() {
+      const postId = document.getElementById('comment_post_id').value;
+      const text = document.getElementById('comment_text').value;
+      const response = await fetch(`/api/posts/${postId}/comments/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + getToken()
+        },
+        body: JSON.stringify({text})
+      });
+      document.getElementById('comment_result').innerText = await response.text();
+    }
+
+    async function getComments() {
+      const postId = document.getElementById('get_comments_post_id').value;
+      const response = await fetch(`/api/posts/${postId}/comments/`, {
+        headers: {'Authorization': 'Bearer ' + getToken()}
+      });
+      const comments = await response.json();
+      let html = '';
+      if (Array.isArray(comments) && comments.length > 0) {
+        comments.forEach(comment => {
+          html += `<div class="post-card">
+            <div class="comment-meta">
+              <b>ID:</b> ${comment.id} |
+              <b>post:</b> ${comment.post} |
+              <b>author:</b> ${comment.author} |
+              <b>created_at:</b> ${new Date(comment.created_at).toLocaleString()}
+            </div>
+            <div><b>text:</b> ${comment.text}</div>
+          </div>`;
+        });
+      } else {
+        html = '<i>Нет комментариев</i>';
+      }
+      document.getElementById('comments_result').innerHTML = html;
+    }
+
+    async function searchPosts() {
+      const query = document.getElementById('search_title').value;
+      const response = await fetch('/api/posts/?search=' + encodeURIComponent(query), {
+        headers: {'Authorization': 'Bearer ' + getToken()}
+      });
+      const posts = await response.json();
+      renderPostsList(posts, 'search_result');
+    }
+
+    async function filterPosts() {
+      const query = document.getElementById('search_title').value;
+      const response = await fetch('/api/posts/?title=' + encodeURIComponent(query), {
+        headers: {'Authorization': 'Bearer ' + getToken()}
+      });
+      const posts = await response.json();
+      renderPostsList(posts, 'search_result');
+    }
+
+    // Универсальная функция для красивого вывода списка постов
+    function renderPostsList(posts, elementId) {
+      let html = '';
+      if (Array.isArray(posts) && posts.length > 0) {
+        posts.forEach(post => {
+          html += `<div class="post-card">
+            <div class="post-title">[ID: ${post.id}] ${post.title}</div>
+            <div class="post-meta">Автор: ${post.author} | ${new Date(post.created_at).toLocaleString()}</div>
+            <div class="post-content">${post.content}</div>
+            <div class="comments-block">
+              <b>Комментарии:</b>
+              ${post.comments && post.comments.length === 0 ? '<i>Нет комментариев</i>' : ''}
+              ${post.comments && post.comments.map(comment => `
+                <div class="comment">
+                  <div class="comment-meta">
+                    <b>ID:</b> ${comment.id} |
+                    <b>post:</b> ${comment.post} |
+                    <b>author:</b> ${comment.author} |
+                    <b>created_at:</b> ${new Date(comment.created_at).toLocaleString()}
+                  </div>
+                  <div><b>text:</b> ${comment.text}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>`;
+        });
+      } else {
+        html = '<i>Нет постов</i>';
+      }
+      document.getElementById(elementId).innerHTML = html;
+    }
+
+    // Красивый вывод всех моих комментариев (по всем постам)
+    async function getAllComments() {
+      document.getElementById('posts_result').innerHTML = '';
+      let html = '';
+      // Получаем все свои посты, чтобы узнать их id
+      const postsResp = await fetch('/api/posts/', {
+        headers: {'Authorization': 'Bearer ' + getToken()}
+      });
+      const posts = await postsResp.json();
+      let allComments = [];
+      for (const post of posts) {
+        const resp = await fetch(`/api/posts/${post.id}/comments/`, {
+          headers: {'Authorization': 'Bearer ' + getToken()}
+        });
+        const comments = await resp.json();
+        allComments = allComments.concat(comments.map(c => ({...c, post_title: post.title})));
+      }
+      if (allComments.length > 0) {
+        allComments.forEach(comment => {
+          html += `<div class="post-card">
+            <div class="comment-meta">
+              <b>ID:</b> ${comment.id} |
+              <b>post:</b> ${comment.post} (${comment.post_title}) |
+              <b>author:</b> ${comment.author} |
+              <b>created_at:</b> ${new Date(comment.created_at).toLocaleString()}
+            </div>
+            <div><b>text:</b> ${comment.text}</div>
+          </div>`;
+        });
+      } else {
+        html = '<i>Нет комментариев</i>';
+      }
+      document.getElementById('comments_result').innerHTML = html;
+    }
+  </script>
+</body>
+</html>

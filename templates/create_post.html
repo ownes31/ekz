@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Создать пост</title>
+</head>
+<body>
+  <h2>Создать пост</h2>
+  <input type="text" id="post_title" placeholder="Заголовок"><br>
+  <textarea id="post_content" placeholder="Текст поста"></textarea><br>
+  <button onclick="createPost()">Создать пост</button>
+  <div id="create_post_result"></div>
+  <script>
+    function getToken() {
+      return localStorage.getItem('jwt_token') || '';
+    }
+    async function createPost() {
+      const title = document.getElementById('post_title').value;
+      const content = document.getElementById('post_content').value;
+      const response = await fetch('/api/posts/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + getToken()
+        },
+        body: JSON.stringify({title, content})
+      });
+      document.getElementById('create_post_result').innerText = await response.text();
+    }
+  </script>
+</body>
+</html>

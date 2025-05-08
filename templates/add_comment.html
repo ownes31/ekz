@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Добавить комментарий</title>
+</head>
+<body>
+  <h2>Добавить комментарий к посту</h2>
+  <input type="number" id="comment_post_id" placeholder="ID поста"><br>
+  <input type="text" id="comment_text" placeholder="Текст комментария"><br>
+  <button onclick="addComment()">Добавить комментарий</button>
+  <div id="comment_result"></div>
+  <script>
+    function getToken() {
+      return localStorage.getItem('jwt_token') || '';
+    }
+    async function addComment() {
+      const postId = document.getElementById('comment_post_id').value;
+      const text = document.getElementById('comment_text').value;
+      const response = await fetch(`/api/posts/${postId}/comments/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + getToken()
+        },
+        body: JSON.stringify({text})
+      });
+      document.getElementById('comment_result').innerText = await response.text();
+    }
+  </script>
+</body>
+</html>
